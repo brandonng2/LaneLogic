@@ -135,17 +135,20 @@ function updateTimeDisplay() {
   filterTripsbyTime();
 }
 
-// Update the visualization based on the filtered data
+// Update the updateVisualization function
 function updateVisualization() {
-  // Adjust circle sizes based on filtered data
+  // Make radius range consistent for all states
   const radiusScale = d3
     .scaleSqrt()
     .domain([0, d3.max(filteredStations, (d) => d.totalTraffic) || 1])
-    .range(timeFilter === -1 ? [0, 25] : [3, 50]);
+    .range([3, 25]); // Consistent range for all states
 
   circles
     .data(filteredStations)
     .attr("r", (d) => radiusScale(d.totalTraffic))
+    .style("--departure-ratio", (d) =>
+      d.totalTraffic > 0 ? stationFlow(d.departures / d.totalTraffic) : 0.5
+    )
     .each(function (d) {
       d3.select(this)
         .select("title")
@@ -157,6 +160,19 @@ function updateVisualization() {
 
 // Load the map data
 map.on("load", () => {
+  // Add bike lanes source and layer
+  map.addSource("boston_route", {
+    type: "geojson",
+    data: "https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson?...",
+  });
+
+  map.addLayer({
+    id: "bike-lanes",
+    type: "line",
+    source: "boston_route",
+    paint: bikeLaneStyle,
+  });
+
   Promise.all([
     d3.json("https://dsc106.com/labs/lab07/data/bluebikes-stations.json"),
     d3.csv("https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv"),
@@ -176,11 +192,12 @@ map.on("load", () => {
       arrivalsByMinute[endedMinutes].push(trip);
     }
 
-    // Initialize circles
+    // Initialize circles with consistent radius scale
     const radiusScale = d3
       .scaleSqrt()
       .domain([0, d3.max(stations, (d) => d.totalTraffic)])
-      .range([0, 25]);
+      .range([3, 25]); // Consistent with updateVisualization
+
     circles = d3
       .select("#map svg")
       .selectAll("circle")
@@ -207,29 +224,6 @@ map.on("load", () => {
 });
 
 const stationFlow = d3.scaleQuantize().domain([0, 1]).range([0, 0.5, 1]);
-
-// Update the updateVisualization function
-function updateVisualization() {
-  // Adjust circle sizes based on filtered data
-  const radiusScale = d3
-    .scaleSqrt()
-    .domain([0, d3.max(filteredStations, (d) => d.totalTraffic) || 1])
-    .range(timeFilter === -1 ? [0, 25] : [3, 50]);
-
-  circles
-    .data(filteredStations)
-    .attr("r", (d) => radiusScale(d.totalTraffic))
-    .style("--departure-ratio", (d) =>
-      d.totalTraffic > 0 ? stationFlow(d.departures / d.totalTraffic) : 0.5
-    )
-    .each(function (d) {
-      d3.select(this)
-        .select("title")
-        .text(
-          `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`
-        );
-    });
-}
 
 // Keep circles in position on map movements
 map.on("move", updatePositions);

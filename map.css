@@ -36,23 +36,40 @@ html, body {
 header {
     display: flex;
     gap: 1em;
-    align-items: baseline;
+    align-items: center;
     width: 100%;
     padding: 10px;
 }
 
 header label {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-#selected-time, #any-time {
-    display: block;
-    min-height: 1.2em;
+/* Time control styles */
+#time-slider {
+    width: 200px;
+    margin: 0 8px;
+}
+
+.time-display {
+    display: inline-flex;
+    align-items: center;
+    min-width: 100px;
+    font-size: 14px;
+}
+
+#selected-time {
+    display: inline;
 }
 
 #any-time {
     color: #666;
     font-style: italic;
+    display: inline;
+    margin-left: 4px;
 }
 
 /* Circle styles */
@@ -70,7 +87,7 @@ circle {
 .legend {
     display: flex;
     align-items: center;
-    gap: 24px; /* Larger gap between legend items */
+    gap: 24px;
     padding: 10px 20px;
 }
 
@@ -82,7 +99,7 @@ circle {
 .legend > div {
     display: flex;
     align-items: center;
-    gap: 6px; /* Smaller gap between swatch and text */
+    gap: 6px;
     font-size: 14px;
 }
 
