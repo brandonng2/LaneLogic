@@ -24,6 +24,10 @@ let stations = [];
 let circles;
 let trips = [];
 let timeFilter = -1;
+let filteredTrips = [];
+let filteredArrivals = new Map();
+let filteredDepartures = new Map();
+let filteredStations = [];
 
 // Create buckets for efficient time-based filtering
 let departuresByMinute = Array.from({ length: 1440 }, () => []);
@@ -61,7 +65,48 @@ function minutesSinceMidnight(date) {
   return date.getHours() * 60 + date.getMinutes();
 }
 
-// Function to filter trips efficiently based on time
+// Function to filter trips based on time
+function filterTripsbyTime() {
+  filteredTrips =
+    timeFilter === -1
+      ? trips
+      : trips.filter((trip) => {
+          const startedMinutes = minutesSinceMidnight(trip.started_at);
+          const endedMinutes = minutesSinceMidnight(trip.ended_at);
+          return (
+            Math.abs(startedMinutes - timeFilter) <= 60 ||
+            Math.abs(endedMinutes - timeFilter) <= 60
+          );
+        });
+
+  // Update filtered arrivals and departures
+  filteredDepartures = d3.rollup(
+    filteredTrips,
+    (v) => v.length,
+    (d) => d.start_station_id
+  );
+
+  filteredArrivals = d3.rollup(
+    filteredTrips,
+    (v) => v.length,
+    (d) => d.end_station_id
+  );
+
+  // Update filtered stations with new traffic data
+  filteredStations = stations.map((station) => {
+    const newStation = { ...station }; // Clone to avoid modifying original
+    const id = newStation.short_name;
+    newStation.arrivals = filteredArrivals.get(id) ?? 0;
+    newStation.departures = filteredDepartures.get(id) ?? 0;
+    newStation.totalTraffic = newStation.arrivals + newStation.departures;
+    return newStation;
+  });
+
+  // Update visualization with filtered data
+  updateVisualization();
+}
+
+// Function to filter trips by minute efficiently
 function filterByMinute(tripsByMinute, minute) {
   let minMinute = (minute - 60 + 1440) % 1440;
   let maxMinute = (minute + 60) % 1440;
@@ -87,48 +132,12 @@ function updateTimeDisplay() {
     anyTimeLabel.style.display = "none";
   }
 
-  updateVisualization();
+  filterTripsbyTime();
 }
 
-// Update the visualization based on the selected time filter
+// Update the visualization based on the filtered data
 function updateVisualization() {
-  const filteredDepartures =
-    timeFilter === -1
-      ? d3.rollup(
-          trips,
-          (v) => v.length,
-          (d) => d.start_station_id
-        )
-      : d3.rollup(
-          filterByMinute(departuresByMinute, timeFilter),
-          (v) => v.length,
-          (d) => d.start_station_id
-        );
-
-  const filteredArrivals =
-    timeFilter === -1
-      ? d3.rollup(
-          trips,
-          (v) => v.length,
-          (d) => d.end_station_id
-        )
-      : d3.rollup(
-          filterByMinute(arrivalsByMinute, timeFilter),
-          (v) => v.length,
-          (d) => d.end_station_id
-        );
-
-  // Update station data with filtered traffic
-  const filteredStations = stations.map((station) => {
-    const newStation = { ...station };
-    const id = newStation.short_name;
-    newStation.arrivals = filteredArrivals.get(id) ?? 0;
-    newStation.departures = filteredDepartures.get(id) ?? 0;
-    newStation.totalTraffic = newStation.arrivals + newStation.departures;
-    return newStation;
-  });
-
-  // Adjust circle sizes
+  // Adjust circle sizes based on filtered data
   const radiusScale = d3
     .scaleSqrt()
     .domain([0, d3.max(filteredStations, (d) => d.totalTraffic) || 1])
@@ -159,8 +168,12 @@ map.on("load", () => {
     for (let trip of trips) {
       trip.started_at = new Date(trip.started_at);
       trip.ended_at = new Date(trip.ended_at);
-      departuresByMinute[minutesSinceMidnight(trip.started_at)].push(trip);
-      arrivalsByMinute[minutesSinceMidnight(trip.ended_at)].push(trip);
+
+      // Populate time buckets
+      const startedMinutes = minutesSinceMidnight(trip.started_at);
+      const endedMinutes = minutesSinceMidnight(trip.ended_at);
+      departuresByMinute[startedMinutes].push(trip);
+      arrivalsByMinute[endedMinutes].push(trip);
     }
 
     // Initialize circles
@@ -192,6 +205,31 @@ map.on("load", () => {
     updateTimeDisplay();
   });
 });
+
+const stationFlow = d3.scaleQuantize().domain([0, 1]).range([0, 0.5, 1]);
+
+// Update the updateVisualization function
+function updateVisualization() {
+  // Adjust circle sizes based on filtered data
+  const radiusScale = d3
+    .scaleSqrt()
+    .domain([0, d3.max(filteredStations, (d) => d.totalTraffic) || 1])
+    .range(timeFilter === -1 ? [0, 25] : [3, 50]);
+
+  circles
+    .data(filteredStations)
+    .attr("r", (d) => radiusScale(d.totalTraffic))
+    .style("--departure-ratio", (d) =>
+      d.totalTraffic > 0 ? stationFlow(d.departures / d.totalTraffic) : 0.5
+    )
+    .each(function (d) {
+      d3.select(this)
+        .select("title")
+        .text(
+          `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`
+        );
+    });
+}
 
 // Keep circles in position on map movements
 map.on("move", updatePositions);

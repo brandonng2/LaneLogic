@@ -5,15 +5,23 @@ html, body {
     width: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center; /* Center horizontally */
-    align-items: center;     /* Center vertically */
+    justify-content: center;
+    align-items: center;
 }
-     
+
+/* Traffic flow colors */
+:root {
+    --color-departures: steelblue;
+    --color-arrivals: darkorange;
+}
+
+/* Map styles */
 #map {
-    width: 100%;    /* Adjust width to your desired size */
-    height: 100%;   /* Adjust height to your desired size */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: subtle shadow for effect */
-    border-radius: 8px; /* Optional: rounded corners */
+    width: 100%;
+    height: calc(100% - 100px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    margin-bottom: 20px;
 }
 
 #map svg {
@@ -24,6 +32,7 @@ html, body {
     pointer-events: none;
 }
 
+/* Header styles */
 header {
     display: flex;
     gap: 1em;
@@ -46,6 +55,45 @@ header label {
     font-style: italic;
 }
 
+/* Circle styles */
 circle {
     pointer-events: auto;
+    --color: color-mix(
+        in oklch,
+        var(--color-departures) calc(100% * var(--departure-ratio)),
+        var(--color-arrivals)
+    );
+    fill: var(--color);
+}
+
+/* Legend styles */
+.legend {
+    display: flex;
+    align-items: center;
+    gap: 24px; /* Larger gap between legend items */
+    padding: 10px 20px;
+}
+
+.legend-title {
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.legend > div {
+    display: flex;
+    align-items: center;
+    gap: 6px; /* Smaller gap between swatch and text */
+    font-size: 14px;
+}
+
+.legend > div::before {
+    content: "";
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: color-mix(
+        in oklch,
+        var(--color-departures) calc(100% * var(--departure-ratio)),
+        var(--color-arrivals)
+    );
 }
